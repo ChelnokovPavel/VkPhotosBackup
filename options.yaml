@@ -1,4 +1,5 @@
 vk_token:
 yadisk_token:
 yadisk_dir_name: VkPhotosBackup
+photo_count: 5
 file_format: jpg

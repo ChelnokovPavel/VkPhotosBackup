@@ -39,7 +39,7 @@ class VkPhotosBackup:
 
     def _get_upload_link(self, file_name):
         i = 1
-        while self._check_file_exists(file_name, file_format):
+        while self._check_file_exists(file_name):
             file_name = f'{file_name}_{i}'
             i += 1
         params = {'path': f'/{self.yadisk_dir_name}/{file_name}.{self.file_format}', 'overwrite': 'true'}
@@ -57,7 +57,7 @@ class VkPhotosBackup:
         if res.status_code != 201:
             return True
 
-    def execute(self):
+    def execute(self, count):
         self._create_dir()
         vk_params = {
             'access_token': self.vk_token,
@@ -68,15 +68,21 @@ class VkPhotosBackup:
             'photo_sizes': 1,
             'count': 1000
         }
-        offset = 0
+        if count <= 1000:
+            remainder = count
+            offset = 0
+        else:
+            remainder = count % 1000
+            offset = count // 1000
         photos_list = []
-        while True:
-            vk_params['offset'] = offset
+        for i in range(offset+1):
+            if i == offset:
+                vk_params['count'] = remainder
+            vk_params['offset'] = offset * 1000
             photos = requests.get(f'{self.vk_url}/photos.get', params=vk_params)
             if not photos.json()['response']['items']:
                 break
             photos_list += photos.json()['response']['items']
-            offset += 1000
             sleep(0.5)
         logging.info(f'Upload {len(photos_list)} photo(s)')
         for i, photo in enumerate(tqdm(photos_list)):
@@ -95,18 +101,18 @@ if __name__ == '__main__':
     with open('options.yaml') as file:
         options = yaml.safe_load(file)
 
-    user_id = input('Please enter vkontakte user id')
+    user_id = input('Please enter vkontakte user id: ')
     if not options['vk_token']:
-        vk_token = input('Please enter vkontakte token')
+        vk_token = input('Please enter vkontakte token: ')
     if not options['yadisk_token']:
-        yadisk_token = input('Please enter yandex disk token')
+        yadisk_token = input('Please enter yandex disk token: ')
 
     new_obj = VkPhotosBackup(user_id=user_id,
-                             vk_token=vk_token,
-                             yadisk_token=yadisk_token,
+                             vk_token=options['vk_token'] or vk_token,
+                             yadisk_token=options['yadisk_token'] or yadisk_token,
                              yadisk_dir_name=options['yadisk_dir_name'],
                              file_format=options['file_format'])
 
-    new_obj.execute()
+    new_obj.execute(count=options['photo_count'])
 
     logging.info('Done')
